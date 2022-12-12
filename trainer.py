@@ -54,30 +54,15 @@ class Trainer():
                 labels = labels.to(self.device)
                 pred_y = self.learner(images)
 
-                # with torch.no_grad():
-                #     feature = self.learner.feature_output(images, labels, indices)
-                # logits = self.instructor(feature)
-                # instructor_loss = cross_entropy(logits, labels)
-
                 learner_loss = cross_entropy(pred_y, labels)
                 self.optimizer_learner.zero_grad()
                 learner_loss.backward()
                 self.optimizer_learner.step()
                 _, learner_id = torch.max(pred_y.data, 1)
                 learner_nums_correct = torch.sum(learner_id == labels.data)
-
-                # self.optimizer_instructor.zero_grad()
-                # instructor_loss.backward()
-                # self.optimizer_instructor.step()
-                # _, instructor_id = torch.max(logits.data, 1)
-                # instructor_nums_correct = torch.sum(instructor_id == labels.data)
-
-                # train_losses.append(loss.item())
                 
                 self.writer.add_scalar("loss/train_learner", learner_loss.item(), train_iteration)
                 self.writer.add_scalar("accuracy/train_learner", learner_nums_correct / len(images), train_iteration)
-                # self.writer.add_scalar("loss/train_instructor", instructor_loss.item(), train_iteration)
-                # self.writer.add_scalar("accuracy/instructor", instructor_nums_correct / len(images), train_iteration)
                 train_iteration += 1
             # build the error set
             self.learner.eval()
@@ -121,22 +106,10 @@ class Trainer():
             self.learner.train()
             self.instructor.train()
             num = 0
-            for images, labels, indices in iter(data_loader_train_and_error):
+            for images, labels, indices in iter(data_loader_train):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 pred_y = self.learner(images, retrain=True)
-                # get the instructor logits
-                
-                # target = self.instructor(self.learner.feature_output(images, labels, indices)).softmax(dim=1)
-                # instructor_loss = cross_entropy(target, labels)
-                # self.optimizer_instructor.zero_grad()
-                # instructor_loss.backward()
-                # self.optimizer_instructor.step()
-                # _, ins_id = torch.max(target.data, 1)
-                # ins_nums_correct = torch.sum(ins_id == labels.data)
-                # with torch.no_grad():
-                #     target = self.instructor(self.learner.feature_output(images, labels, indices)).softmax(dim=1)
-                # loss = cross_entropy(pred_y, target_matrix[indices])
                 loss = cross_entropy(pred_y, labels)
                 self.optimizer_retrain_learner.zero_grad()
                 loss.backward()
@@ -146,8 +119,6 @@ class Trainer():
 
                 self.writer.add_scalar("loss/retrain_learner", loss.item(), retrain_iteration)
                 self.writer.add_scalar("accuracy/retrain_learner", nums_correct / len(images), retrain_iteration)
-                # self.writer.add_scalar("loss/retrain_instructor", instructor_loss.item(), retrain_iteration)
-                # self.writer.add_scalar("accuracy/retrain_instructor", ins_nums_correct / len(images), retrain_iteration)
                 self.optimizer_retrain_learner.step()
                 retrain_iteration += 1
                 num += len(images)
@@ -158,8 +129,6 @@ class Trainer():
             test_res = self.test(data_loader_test)
             self.writer.add_scalar("accuracy/test_learner", test_res['acc'], epoch)
             self.writer.add_scalar("accuracy/error_learner", error_res['acc'], epoch)
-            # print("correct:%.3f%%" % (100 * instructor_test_correct / len(self.data_processor.data_test)))
-            # self.writer.add_scalar("accuracy/test_learner", 100 * instructor_test_correct / len(self.data_processor.data_test), epoch)
 
     def test(self, data_loader):
         result = {}
