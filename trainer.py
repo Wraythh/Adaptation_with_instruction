@@ -12,6 +12,7 @@ def one_hot(x, class_count):
 
 class Trainer():
     def __init__(self, 
+        method: str = "baseline",
         epoch: int = 50,
         batch_size: int = 64,
         class_num: int = 10,
@@ -24,6 +25,7 @@ class Trainer():
         writer: torch.utils.tensorboard.SummaryWriter = None,
         device: str = "cpu"
     ):
+        self.method = method
         self.epochs = epoch
         self.batch_size = batch_size
         self.class_num = class_num
@@ -104,13 +106,24 @@ class Trainer():
             
             # retrain the learner
             self.learner.train()
-            self.instructor.train()
             num = 0
-            for images, labels, indices in iter(data_loader_train):
+            if self.method == "baseline":
+                data_loader = data_loader_error
+            elif self.method == "upper_bound":
+                data_loader = data_loader_val
+            elif self.method == "our_method":
+                data_loader = data_loader_train
+            else:
+                data_loader = data_loader_train
+
+            for images, labels, indices in iter(data_loader):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 pred_y = self.learner(images, retrain=True)
-                loss = cross_entropy(pred_y, labels)
+                if self.method == "our_method":
+                    loss = cross_entropy(pred_y, target_matrix[indices])
+                else:
+                    loss = cross_entropy(pred_y, labels)
                 self.optimizer_retrain_learner.zero_grad()
                 loss.backward()
                 retrain_losses.append(loss.item())

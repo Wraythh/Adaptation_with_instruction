@@ -16,6 +16,7 @@ def get_args():
     parser.add_argument("--class-num", type=int, default=10)
     parser.add_argument("--feat-dim", type=int, default=1024)
     parser.add_argument("--exp-name", type=str, default="our_method_split_0_5")
+    parser.add_argument("--method", type=str, default="baseline")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.003)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -56,6 +57,7 @@ def main(args=get_args()):
     writer.add_text("args", str(args))
 
     trainer = Trainer(
+        method=args.method,
         epoch=args.epochs,
         batch_size=args.batch_size,
         class_num=args.class_num,
