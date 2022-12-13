@@ -113,6 +113,8 @@ class Trainer():
                 data_loader = data_loader_val
             elif self.method == "our_method":
                 data_loader = data_loader_train
+            elif self.method == "our_method_t&e":
+                data_loader = data_loader_train_and_error
             else:
                 data_loader = data_loader_train
 
@@ -120,7 +122,7 @@ class Trainer():
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 pred_y = self.learner(images, retrain=True)
-                if self.method == "our_method":
+                if self.method == "our_method" or self.method == "our_method_t&e":
                     loss = cross_entropy(pred_y, target_matrix[indices])
                 else:
                     loss = cross_entropy(pred_y, labels)

@@ -76,25 +76,30 @@ class DataProcessor():
     def load_data(self):
         data_loader_train = torch.utils.data.DataLoader(dataset=self.data_train,
                                                         batch_size = self.batch_size,
-                                                        shuffle = True)
+                                                        shuffle = True,
+                                                        drop_last = True)
         data_loader_val = torch.utils.data.DataLoader(dataset=self.data_val,
                                                         batch_size = self.batch_size,
-                                                        shuffle = True)
+                                                        shuffle = True,
+                                                        drop_last = True)
         data_loader_test = torch.utils.data.DataLoader(dataset=self.data_test,
                                                     batch_size = self.batch_size,
-                                                    shuffle = True)
+                                                    shuffle = True,
+                                                        drop_last = True)
         return data_loader_train, data_loader_val, data_loader_test
 
     def build_error_set(self):
         data_loader_error = torch.utils.data.DataLoader(dataset=self.source_data,
                                                     batch_size = self.batch_size,
-                                                    sampler = SubsetRandomSampler(self.error_indices))
+                                                    sampler = SubsetRandomSampler(self.error_indices),
+                                                    drop_last = True)
         return data_loader_error
 
     def build_train_and_error_set(self):
         data_loader_train_and_error = torch.utils.data.DataLoader(dataset=self.source_data,
                                                     batch_size = self.batch_size,
-                                                    sampler = SubsetRandomSampler(self.train_and_error_indices))
+                                                    sampler = SubsetRandomSampler(self.train_and_error_indices),
+                                                        drop_last = True)
         return data_loader_train_and_error
 
     def update_error_indices(self, error_list):
