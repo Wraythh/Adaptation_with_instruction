@@ -108,7 +108,7 @@ class Trainer():
             self.learner.train()
             num = 0
             if self.method == "baseline":
-                data_loader = data_loader_error
+                data_loader = data_loader_train_and_error
             elif self.method == "upper_bound":
                 data_loader = data_loader_val
             elif self.method == "our_method":
@@ -124,7 +124,7 @@ class Trainer():
                     loss = cross_entropy(pred_y, target_matrix[indices])
                 else:
                     loss = cross_entropy(pred_y, labels)
-                self.optimizer_retrain_learner.zero_grad()
+                self.optimizer_learner.zero_grad()
                 loss.backward()
                 retrain_losses.append(loss.item())
                 _, id = torch.max(pred_y.data, 1)
@@ -132,7 +132,7 @@ class Trainer():
 
                 self.writer.add_scalar("loss/retrain_learner", loss.item(), retrain_iteration)
                 self.writer.add_scalar("accuracy/retrain_learner", nums_correct / len(images), retrain_iteration)
-                self.optimizer_retrain_learner.step()
+                self.optimizer_learner.step()
                 retrain_iteration += 1
                 num += len(images)
             # test
