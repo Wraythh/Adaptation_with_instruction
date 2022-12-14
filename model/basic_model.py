@@ -38,8 +38,8 @@ class Learner(nn.Module):
                                  use_norm=True).to(device)
     
     def forward(self, x, retrain=False):
-        y = self.model(x, retrain=retrain)
-        return y
+        logits, feature = self.model(x, retrain=retrain)
+        return logits, feature
     
     def get_params(self):
         params_vector = []
@@ -51,7 +51,7 @@ class Learner(nn.Module):
         with torch.no_grad():
             images = images.to(self.device)
             labels = labels.to(self.device)
-            pred_y = self(images)
+            pred_y, feature = self(images)
             feature_map = self.model.feature_map(images)
             loss = cross_entropy(pred_y, labels, reduction='none').unsqueeze(1)
             p_y = torch.softmax(pred_y, 1).gather(1, labels.unsqueeze(1)).squeeze()

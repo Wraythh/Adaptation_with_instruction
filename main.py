@@ -15,7 +15,7 @@ def get_args():
     parser.add_argument("--dataset-split", type=float, default=0.5)
     parser.add_argument("--class-num", type=int, default=10)
     parser.add_argument("--feat-dim", type=int, default=1024)
-    parser.add_argument("--exp-name", type=str, default="our_method_split_0_5")
+    parser.add_argument("--exp-name", type=str, default="debug")
     parser.add_argument("--method", type=str, default="baseline")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.003)

@@ -4,6 +4,7 @@ import numpy
 import itertools as it
 from dataprocessor import DataProcessor
 from torch.nn.functional import cross_entropy, mse_loss
+from utils.contrastive_loss import SupConLoss
 
 def one_hot(x, class_count):
 	# 第一构造一个[class_count, class_count]的对角线为1的向量
@@ -36,6 +37,7 @@ class Trainer():
         self.optimizer_instructor = optimizer_instructor
         self.data_processor = data_processor
         self.criterion = torch.nn.CrossEntropyLoss(reduction='none')
+        self.contrastive_loss = SupConLoss()
         self.device = device
         self.writer = writer
 
@@ -54,7 +56,7 @@ class Trainer():
             for images, labels, indices in iter(data_loader_train):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                pred_y = self.learner(images)
+                pred_y, features = self.learner(images)
 
                 learner_loss = cross_entropy(pred_y, labels)
                 self.optimizer_learner.zero_grad()
@@ -73,7 +75,7 @@ class Trainer():
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 with torch.no_grad():
-                    pred_y = self.learner(images)
+                    pred_y, features = self.learner(images)
                 _, id = torch.max(pred_y.data, 1)
                 error_indices += indices[torch.nonzero(id != labels.data)].squeeze(1).tolist()
             print(f"The number of incorrect examples is {len(error_indices)}")
@@ -121,11 +123,12 @@ class Trainer():
             for images, labels, indices in iter(data_loader):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                pred_y = self.learner(images, retrain=True)
+                pred_y, features = self.learner(images, retrain=True)
+                con_loss = self.contrastive_loss(features, labels)
                 if self.method == "our_method" or self.method == "our_method_t&e":
                     loss = cross_entropy(pred_y, target_matrix[indices])
                 else:
-                    loss = cross_entropy(pred_y, labels)
+                    loss = cross_entropy(pred_y, labels) + self.contrastive_loss(features, labels)
                 self.optimizer_learner.zero_grad()
                 loss.backward()
                 retrain_losses.append(loss.item())
@@ -195,3 +198,4 @@ class Trainer():
                 _, id = torch.max(outputs.data, 1)
                 test_correct += torch.sum(id == labels.data)
             print("correct:%.3f%%" % (test_correct / len(self.data_processor.data_test)))
+    
