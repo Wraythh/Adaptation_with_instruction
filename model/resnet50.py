@@ -304,9 +304,9 @@ class BCLModel(nn.Module):
     def forward(self, x, retrain=False):
         feat = self.encoder(x)
         logits = self.fc(feat)
-        # feat_mlp = F.normalize(self.head(feat), dim=1)
+        feat_mlp = F.normalize(self.head(feat), dim=1)
         # centers_logits = F.normalize(self.head_fc(self.fc.weight.T), dim=1)
-        return logits
+        return logits, feat_mlp
     
     def feature_map(self, x):
         feat = self.encoder(x)

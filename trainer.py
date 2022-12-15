@@ -4,6 +4,7 @@ import numpy
 import itertools as it
 from dataprocessor import DataProcessor
 from torch.nn.functional import cross_entropy, mse_loss
+from utils.contrastive_loss import SupConLoss
 
 def one_hot(x, class_count):
 	# 第一构造一个[class_count, class_count]的对角线为1的向量
@@ -18,6 +19,7 @@ class Trainer():
         class_num: int = 10,
         instructor: nn.Module = None, 
         learner: nn.Module = None,
+        contrastive_temp: float = 0.5,
         optimizer_learner: torch.optim = None,
         optimizer_retrain_learner: torch.optim = None,
         optimizer_instructor: torch.optim = None,
@@ -36,6 +38,7 @@ class Trainer():
         self.optimizer_instructor = optimizer_instructor
         self.data_processor = data_processor
         self.criterion = torch.nn.CrossEntropyLoss(reduction='none')
+        self.contrastive_loss = SupConLoss(temperature=contrastive_temp)
         self.device = device
         self.writer = writer
 
@@ -54,7 +57,7 @@ class Trainer():
             for images, labels, indices in iter(data_loader_train):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                pred_y = self.learner(images)
+                pred_y, features = self.learner(images)
 
                 learner_loss = cross_entropy(pred_y, labels)
                 self.optimizer_learner.zero_grad()
@@ -73,7 +76,7 @@ class Trainer():
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 with torch.no_grad():
-                    pred_y = self.learner(images)
+                    pred_y, features = self.learner(images)
                 _, id = torch.max(pred_y.data, 1)
                 error_indices += indices[torch.nonzero(id != labels.data)].squeeze(1).tolist()
             print(f"The number of incorrect examples is {len(error_indices)}")
@@ -113,7 +116,7 @@ class Trainer():
                 data_loader = data_loader_val
             elif self.method == "our_method":
                 data_loader = data_loader_train
-            elif self.method == "our_method_t&e":
+            elif self.method == "our_method_t_e":
                 data_loader = data_loader_train_and_error
             else:
                 data_loader = data_loader_train
@@ -121,8 +124,8 @@ class Trainer():
             for images, labels, indices in iter(data_loader):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                pred_y = self.learner(images, retrain=True)
-                if self.method == "our_method" or self.method == "our_method_t&e":
+                pred_y, features = self.learner(images, retrain=True)
+                if self.method == "our_method" or self.method == "our_method_t_e":
                     loss = cross_entropy(pred_y, target_matrix[indices])
                 else:
                     loss = cross_entropy(pred_y, labels)
@@ -140,37 +143,35 @@ class Trainer():
             # test
             print(num)
             self.learner.eval()
+            self.instructor.eval()
             error_res = self.test(data_loader_error)
             test_res = self.test(data_loader_test)
-            self.writer.add_scalar("accuracy/test_learner", test_res['acc'], epoch)
-            self.writer.add_scalar("accuracy/error_learner", error_res['acc'], epoch)
+            self.writer.add_scalar("accuracy/test_learner", test_res['acc_learner'], epoch)
+            self.writer.add_scalar("accuracy/error_learner", error_res['acc_learner'], epoch)
+            self.writer.add_scalar("accuracy/test_instructor", test_res['acc_ins'], epoch)
+            self.writer.add_scalar("accuracy/error_instructor", error_res['aacc_ins'], epoch)
 
     def test(self, data_loader):
         result = {}
-        test_correct = 0
+        test_correct_learner = 0
+        test_correct_ins = 0
         num_dataset = 0
         for images, labels, indices in iter(data_loader):
             images = images.to(self.device)
             labels = labels.to(self.device)
             with torch.no_grad():
-                pred_y = self.learner(images)
-                # loss = self.criterion(pred_y, labels).unsqueeze(1)
-                # onehot = one_hot(labels, 10).to(self.device)
-                # p_y = torch.softmax(pred_y, 1).gather(1, labels.unsqueeze(1)).squeeze()
-                # top2 = torch.topk(torch.softmax(pred_y, 1), 2).values
-                # cond = p_y == top2[:, 0]
-                # p_y_ = torch.where(cond, top2[:, 1], top2[:, 0])
-                # margin_p = (p_y - p_y_).unsqueeze(1)
-                # model_feature = (torch.tensor([iteration, max(losses), max(val_accuracy)])*torch.ones((len(pred_y), 3))).to(self.device)
-                # feature = torch.concat([pred_y, loss, margin_p], dim=1)
-                # delta_logits = self.instructor(feature)
-                # instructor_pred_y = pred_y + delta_logits
-            _, id = torch.max(pred_y.data, 1)
-            test_correct += torch.sum(id == labels.data)
-            num_dataset += len(images)
-        result['acc'] = test_correct / num_dataset
-        return result
+                pred_y_learner, _ = self.learner(images)
+                feature = self.learner.feature_output(images, labels, indices)
+                pred_y_ins = self.instructor(feature)
+            _, id_learner = torch.max(pred_y_learner.data, 1)
+            test_correct_learner += torch.sum(id_learner == labels.data)
 
+            _, id_ins = torch.max(pred_y_ins.data, 1)
+            test_correct_ins += torch.sum(id_ins == labels.data)
+            num_dataset += len(images)
+        result['acc_learner'] = test_correct_learner / num_dataset
+        result['acc_ins'] = test_correct_ins / num_dataset
+        return result
 
     def train_learner(self):
         data_loader_train, data_loader_val, data_loader_test = self.data_processor.load_data()
@@ -179,7 +180,7 @@ class Trainer():
             for images, labels, indices in iter(data_loader_train):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                pred_y = self.learner(images)
+                pred_y, features = self.learner(images)
                 loss = self.criterion(pred_y, labels)
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -195,3 +196,4 @@ class Trainer():
                 _, id = torch.max(outputs.data, 1)
                 test_correct += torch.sum(id == labels.data)
             print("correct:%.3f%%" % (test_correct / len(self.data_processor.data_test)))
+    
