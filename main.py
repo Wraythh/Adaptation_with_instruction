@@ -16,7 +16,7 @@ def get_args():
     parser.add_argument("--class-num", type=int, default=10)
     parser.add_argument("--feat-dim", type=int, default=1024)
     parser.add_argument("--exp-name", type=str, default="debug")
-    parser.add_argument("--method", type=str, default="baseline")
+    parser.add_argument("--method", type=str, default="our_method_t_e")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.003)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -26,6 +26,7 @@ def get_args():
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
     )
+    parser.add_argument("--con-temp", type=float, default=0.5)
     return parser.parse_args()
 
 def main(args=get_args()):
@@ -63,6 +64,7 @@ def main(args=get_args()):
         class_num=args.class_num,
         learner=learner,
         instructor=instructor,
+        contrastive_temp=args.con_temp,
         optimizer_learner=optimizer_learner,
         optimizer_retrain_learner=optimizer_retrain_learner,
         optimizer_instructor=optimizer_instructor,
