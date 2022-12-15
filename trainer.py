@@ -149,7 +149,7 @@ class Trainer():
             self.writer.add_scalar("accuracy/test_learner", test_res['acc_learner'], epoch)
             self.writer.add_scalar("accuracy/error_learner", error_res['acc_learner'], epoch)
             self.writer.add_scalar("accuracy/test_instructor", test_res['acc_ins'], epoch)
-            self.writer.add_scalar("accuracy/error_instructor", error_res['aacc_ins'], epoch)
+            self.writer.add_scalar("accuracy/error_instructor", error_res['acc_ins'], epoch)
 
     def test(self, data_loader):
         result = {}
