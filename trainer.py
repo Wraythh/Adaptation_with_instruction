@@ -99,7 +99,7 @@ class Trainer():
                 instructor_train_iteration += 1
 
             target_matrix = torch.zeros([50000, self.class_num]).to(self.device)
-            for images, labels, indices in iter(data_loader_train):
+            for images, labels, indices in iter(data_loader_train_and_error):
                 with torch.no_grad():
                     target = self.instructor(self.learner.feature_output(images, labels, indices)).softmax(dim=1)
                 target_matrix[indices] = target
