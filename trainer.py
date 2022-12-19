@@ -89,11 +89,12 @@ class Trainer():
             for images, labels, indices in iter(data_loader_train_and_error):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                feature = self.learner.feature_output(images, labels, indices)
-                logits = self.instructor(feature)
-                loss = cross_entropy(logits, labels)
-                _, id = torch.max(logits.data, 1)
-                nums_correct = torch.sum(id == labels.data)
+                pred_y, feature = self.learner(images)
+                input = torch.concat([pred_y, feature], dim=1)
+                output = self.instructor(input)
+                id = output.data >= 0.5
+                target = id != labels.data
+                loss = cross_entropy(output, target)
                 self.writer.add_scalar("loss/train_instructor_on_t&e_set", loss.item(), instructor_train_iteration)
                 self.writer.add_scalar("accuracy/instructor_on_t&e_set", nums_correct / len(images), instructor_train_iteration)
                 self.optimizer_instructor.zero_grad()
@@ -101,11 +102,11 @@ class Trainer():
                 self.optimizer_instructor.step()
                 instructor_train_iteration += 1
 
-            target_matrix = torch.zeros([50000, self.class_num]).to(self.device)
-            for images, labels, indices in iter(data_loader_train_and_error):
-                with torch.no_grad():
-                    target = self.instructor(self.learner.feature_output(images, labels, indices)).softmax(dim=1)
-                target_matrix[indices] = target
+            # target_matrix = torch.zeros([50000, self.class_num]).to(self.device)
+            # for images, labels, indices in iter(data_loader_train_and_error):
+            #     with torch.no_grad():
+            #         target = self.instructor(self.learner.feature_output(images, labels, indices)).softmax(dim=1)
+            #     target_matrix[indices] = target
             
             # retrain the learner
             self.learner.train()
@@ -124,20 +125,26 @@ class Trainer():
             for images, labels, indices in iter(data_loader):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                pred_y, features = self.learner(images, retrain=True)
-                if self.method == "our_method" or self.method == "our_method_t_e":
-                    loss = cross_entropy(pred_y, target_matrix[indices])
-                else:
-                    loss = cross_entropy(pred_y, labels)
-                self.optimizer_learner.zero_grad()
+                pred_y, feature = self.learner(images, retrain=True)
+                v_loss = - self.instructor(pred_y, feature).mean()
+                ce_loss = cross_entropy(pred_y, labels)
+                if self.method == "baseline":
+                    loss = ce_loss
+                if self.method == "our_method":
+                    loss = ce_loss + v_loss
+
+                self.optimizer_retrain_learner.zero_grad()
                 loss.backward()
+                self.optimizer_retrain_learner.step()
+
                 retrain_losses.append(loss.item())
                 _, id = torch.max(pred_y.data, 1)
                 nums_correct = torch.sum(id == labels.data)
 
-                self.writer.add_scalar("loss/retrain_learner", loss.item(), retrain_iteration)
+                self.writer.add_scalar("loss/retrain_v_loss", v_loss.item(), retrain_iteration)
+                self.writer.add_scalar("loss/retrain_ce_loss", ce_loss.item(), retrain_iteration)
                 self.writer.add_scalar("accuracy/retrain_learner", nums_correct / len(images), retrain_iteration)
-                self.optimizer_learner.step()
+                
                 retrain_iteration += 1
                 num += len(images)
             # test
@@ -161,13 +168,8 @@ class Trainer():
             labels = labels.to(self.device)
             with torch.no_grad():
                 pred_y_learner, _ = self.learner(images)
-                feature = self.learner.feature_output(images, labels, indices)
-                pred_y_ins = self.instructor(feature)
             _, id_learner = torch.max(pred_y_learner.data, 1)
             test_correct_learner += torch.sum(id_learner == labels.data)
-
-            _, id_ins = torch.max(pred_y_ins.data, 1)
-            test_correct_ins += torch.sum(id_ins == labels.data)
             num_dataset += len(images)
         result['acc_learner'] = test_correct_learner / num_dataset
         result['acc_ins'] = test_correct_ins / num_dataset

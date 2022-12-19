@@ -14,7 +14,7 @@ def get_args():
     parser.add_argument("--dataset", type=str, default="cifar-10")
     parser.add_argument("--dataset-split", type=float, default=0.5)
     parser.add_argument("--class-num", type=int, default=10)
-    parser.add_argument("--feat-dim", type=int, default=1024)
+    parser.add_argument("--feat-dim", type=int, default=2048)
     parser.add_argument("--exp-name", type=str, default="debug")
     parser.add_argument("--method", type=str, default="our_method_t_e")
     parser.add_argument("--epochs", type=int, default=50)
@@ -48,7 +48,7 @@ def main(args=get_args()):
         device=args.device
     )
     optimizer_learner = torch.optim.Adam(list(learner.parameters()), lr=args.lr)
-    optimizer_retrain_learner = torch.optim.Adam(list(learner.model.fc.parameters()), lr=args.lr)
+    optimizer_retrain_learner = torch.optim.Adam(list(learner.model.encoder.parameters()), lr=args.lr)
     optimizer_instructor = torch.optim.Adam(list(instructor.parameters()), lr=args.lr, weight_decay=1e-5)
     # log
     now = datetime.datetime.now().strftime("%y%m%d-%H%M%S")

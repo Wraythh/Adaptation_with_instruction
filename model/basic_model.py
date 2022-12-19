@@ -16,8 +16,8 @@ class Instructor(nn.Module):
         super().__init__()
         self.device = device
         self.instructor = nn.Sequential(*[
-            nn.Linear(class_num + 3 + feat_dim, 128), nn.ReLU(),
-            nn.Linear(128, class_num),
+            nn.Linear(class_num + feat_dim, 128), nn.ReLU(),
+            nn.Linear(128, 1),
         ]).to(self.device)
     
     def forward(self, x):
@@ -47,22 +47,22 @@ class Learner(nn.Module):
             params_vector.extend(v)
         return params_vector
     
-    def feature_output(self, images, labels, indices):
-        with torch.no_grad():
-            images = images.to(self.device)
-            labels = labels.to(self.device)
-            pred_y, feature = self(images)
-            feature_map = self.model.feature_map(images)
-            loss = cross_entropy(pred_y, labels, reduction='none').unsqueeze(1)
-            p_y = torch.softmax(pred_y, 1).gather(1, labels.unsqueeze(1)).squeeze()
-            top2 = torch.topk(torch.softmax(pred_y, 1), 2).values
-            cond = p_y == top2[:, 0]
-            p_y_ = torch.where(cond, top2[:, 1], top2[:, 0])
-            margin_p = (p_y - p_y_).unsqueeze(1)
-            indices = (indices / 50000.).unsqueeze(1).to(self.device)
-            # model_feature = (torch.tensor([iteration, max(losses), max(val_accuracy)])*torch.ones((len(pred_y), 3))).to(self.device)
-            feature = torch.concat([pred_y, feature_map, loss, margin_p, indices], dim=1)
-        return feature
+    # def feature_output(self, images, labels, indices):
+    #     with torch.no_grad():
+    #         images = images.to(self.device)
+    #         labels = labels.to(self.device)
+    #         pred_y, feature = self(images)
+    #         feature_map = self.model.feature_map(images)
+    #         # loss = cross_entropy(pred_y, labels, reduction='none').unsqueeze(1)
+    #         # p_y = torch.softmax(pred_y, 1).gather(1, labels.unsqueeze(1)).squeeze()
+    #         # top2 = torch.topk(torch.softmax(pred_y, 1), 2).values
+    #         # cond = p_y == top2[:, 0]
+    #         # p_y_ = torch.where(cond, top2[:, 1], top2[:, 0])
+    #         # margin_p = (p_y - p_y_).unsqueeze(1)
+    #         # indices = (indices / 50000.).unsqueeze(1).to(self.device)
+    #         # model_feature = (torch.tensor([iteration, max(losses), max(val_accuracy)])*torch.ones((len(pred_y), 3))).to(self.device)
+    #         feature = torch.concat([pred_y, feature_map], dim=1)
+    #     return feature
 
 
 class Model(nn.Module):

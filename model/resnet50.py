@@ -283,7 +283,7 @@ model_dict = {
 }
 
 class BCLModel(nn.Module):
-    def __init__(self, num_classes=1000, name='resnet50', head='mlp', use_norm=True, feat_dim=1024):
+    def __init__(self, num_classes=1000, name='resnet50', head='mlp', use_norm=True, feat_dim=2048):
         super(BCLModel, self).__init__()
         model_fun, dim_in = model_dict[name]
         self.encoder = model_fun()
@@ -304,11 +304,7 @@ class BCLModel(nn.Module):
     def forward(self, x, retrain=False):
         feat = self.encoder(x)
         logits = self.fc(feat)
-        feat_mlp = F.normalize(self.head(feat), dim=1)
+        feat_mlp = F.normalize(feat, dim=1)
         # centers_logits = F.normalize(self.head_fc(self.fc.weight.T), dim=1)
         return logits, feat_mlp
     
-    def feature_map(self, x):
-        feat = self.encoder(x)
-        feat_mlp = F.normalize(self.head(feat), dim=1)
-        return feat_mlp
