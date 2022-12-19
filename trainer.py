@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy
 import itertools as it
 from dataprocessor import DataProcessor
-from torch.nn.functional import cross_entropy, mse_loss
+from torch.nn.functional import cross_entropy, mse_loss, binary_cross_entropy
 from utils.contrastive_loss import SupConLoss
 
 def one_hot(x, class_count):
@@ -90,11 +90,11 @@ class Trainer():
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 pred_y, feature = self.learner(images)
-                input = torch.concat([pred_y, feature], dim=1)
-                output = self.instructor(input)
-                id = output.data >= 0.5
-                target = id != labels.data
-                loss = cross_entropy(output, target)
+                output = self.instructor(pred_y, feature).squeeze(1)
+                _, id = torch.max(pred_y.data, 1)
+                target = (id == labels.data).type_as(images)
+                loss = binary_cross_entropy(output, target)
+                nums_correct = torch.sum(output.data == target)
                 self.writer.add_scalar("loss/train_instructor_on_t&e_set", loss.item(), instructor_train_iteration)
                 self.writer.add_scalar("accuracy/instructor_on_t&e_set", nums_correct / len(images), instructor_train_iteration)
                 self.optimizer_instructor.zero_grad()
@@ -130,9 +130,8 @@ class Trainer():
                 ce_loss = cross_entropy(pred_y, labels)
                 if self.method == "baseline":
                     loss = ce_loss
-                if self.method == "our_method":
-                    loss = ce_loss + v_loss
-
+                if self.method == "our_method" or self.method == "our_method_t_e":
+                    loss = v_loss + ce_loss
                 self.optimizer_retrain_learner.zero_grad()
                 loss.backward()
                 self.optimizer_retrain_learner.step()

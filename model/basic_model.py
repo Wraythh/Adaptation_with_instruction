@@ -15,13 +15,20 @@ class Instructor(nn.Module):
     ):
         super().__init__()
         self.device = device
-        self.instructor = nn.Sequential(*[
-            nn.Linear(class_num + feat_dim, 128), nn.ReLU(),
-            nn.Linear(128, 1),
+        self.emd_nw = nn.Sequential(*[
+            nn.Linear(feat_dim, 1024), nn.ReLU(),
+            nn.Linear(1024, 256), nn.ReLU(),
+            nn.Linear(256, 128), nn.ReLU(),
+        ]).to(self.device)
+        self.model = nn.Sequential(*[
+            nn.Linear(class_num + 128, 64), nn.ReLU(),
+            nn.Linear(64, 1), nn.Sigmoid()
         ]).to(self.device)
     
-    def forward(self, x):
-        x = self.instructor(x)
+    def forward(self, logits, features):
+        emb = self.emd_nw(features)
+        combined = torch.concat([emb, logits], dim=1)
+        x = self.model(combined)
         return x
 
 class Learner(nn.Module):

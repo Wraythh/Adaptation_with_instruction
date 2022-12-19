@@ -16,7 +16,7 @@ def get_args():
     parser.add_argument("--class-num", type=int, default=10)
     parser.add_argument("--feat-dim", type=int, default=2048)
     parser.add_argument("--exp-name", type=str, default="debug")
-    parser.add_argument("--method", type=str, default="our_method_t_e")
+    parser.add_argument("--method", type=str, default="our_method")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.003)
     parser.add_argument("--batch-size", type=int, default=64)
