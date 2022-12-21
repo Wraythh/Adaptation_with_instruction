@@ -66,8 +66,8 @@ class Trainer():
                 _, learner_id = torch.max(pred_y.data, 1)
                 learner_nums_correct = torch.sum(learner_id == labels.data)
                 
-                self.writer.add_scalar("loss/train_learner", learner_loss.item(), train_iteration)
-                self.writer.add_scalar("accuracy/train_learner", learner_nums_correct / len(images), train_iteration)
+                self.writer.add_scalar("train/learner/loss", learner_loss.item(), train_iteration)
+                self.writer.add_scalar("train/learner/acc", learner_nums_correct / len(images), train_iteration)
                 train_iteration += 1
             # build the error set
             self.learner.eval()
@@ -80,7 +80,7 @@ class Trainer():
                 _, id = torch.max(pred_y.data, 1)
                 error_indices += indices[torch.nonzero(id != labels.data)].squeeze(1).tolist()
             print(f"The number of incorrect examples is {len(error_indices)}")
-            self.writer.add_scalar("numbers/error_set", len(error_indices), epoch)
+            self.writer.add_scalar("build_error_set/error_numbers", len(error_indices), epoch)
             self.data_processor.update_error_indices(error_indices)
 
             # train the instructor model
@@ -94,10 +94,9 @@ class Trainer():
                 _, id = torch.max(pred_y.data, 1)
                 target = (id == labels.data).type_as(images)
                 loss = binary_cross_entropy(output, target)
-                output.data > 0.5
-                nums_correct = torch.sum(output.data == target)
-                self.writer.add_scalar("loss/train_instructor_on_t&e_set", loss.item(), instructor_train_iteration)
-                self.writer.add_scalar("accuracy/instructor_on_t&e_set", nums_correct / len(images), instructor_train_iteration)
+                nums_correct = torch.sum((output.data > 0.5).float() == target)
+                self.writer.add_scalar("train/instructor/loss", loss.item(), instructor_train_iteration)
+                self.writer.add_scalar("train/instructor/acc", nums_correct / len(images), instructor_train_iteration)
                 self.optimizer_instructor.zero_grad()
                 loss.backward()
                 self.optimizer_instructor.step()
@@ -141,9 +140,9 @@ class Trainer():
                 _, id = torch.max(pred_y.data, 1)
                 nums_correct = torch.sum(id == labels.data)
 
-                self.writer.add_scalar("loss/retrain_v_loss", v_loss.item(), retrain_iteration)
-                self.writer.add_scalar("loss/retrain_ce_loss", ce_loss.item(), retrain_iteration)
-                self.writer.add_scalar("accuracy/retrain_learner", nums_correct / len(images), retrain_iteration)
+                self.writer.add_scalar("retrain/learner/v_loss", v_loss.item(), retrain_iteration)
+                self.writer.add_scalar("retrain/learner/ce_loss", ce_loss.item(), retrain_iteration)
+                self.writer.add_scalar("retrain/learner/acc", nums_correct / len(images), retrain_iteration)
                 
                 retrain_iteration += 1
                 num += len(images)
@@ -153,10 +152,10 @@ class Trainer():
             self.instructor.eval()
             error_res = self.test(data_loader_error)
             test_res = self.test(data_loader_test)
-            self.writer.add_scalar("accuracy/test_learner", test_res['acc_learner'], epoch)
-            self.writer.add_scalar("accuracy/error_learner", error_res['acc_learner'], epoch)
-            self.writer.add_scalar("accuracy/test_instructor", test_res['acc_ins'], epoch)
-            self.writer.add_scalar("accuracy/error_instructor", error_res['acc_ins'], epoch)
+            self.writer.add_scalar("test/learner/test_set", test_res['acc_learner'], epoch)
+            self.writer.add_scalar("test/learner/error_set", error_res['acc_learner'], epoch)
+            self.writer.add_scalar("test/instructor/test_set", test_res['acc_ins'], epoch)
+            self.writer.add_scalar("test/instructor/error_set", error_res['acc_ins'], epoch)
 
     def test(self, data_loader):
         result = {}
@@ -167,7 +166,11 @@ class Trainer():
             images = images.to(self.device)
             labels = labels.to(self.device)
             with torch.no_grad():
-                pred_y_learner, _ = self.learner(images)
+                pred_y_learner, feature = self.learner(images)
+                output = self.instructor(pred_y_learner, feature).squeeze(1)
+            _, id = torch.max(pred_y_learner.data, 1)
+            target = id == labels.data
+            test_correct_ins += torch.sum((output.data > 0.5) == target)
             _, id_learner = torch.max(pred_y_learner.data, 1)
             test_correct_learner += torch.sum(id_learner == labels.data)
             num_dataset += len(images)
