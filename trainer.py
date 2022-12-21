@@ -17,6 +17,7 @@ class Trainer():
         epoch: int = 50,
         batch_size: int = 64,
         class_num: int = 10,
+        loss_lambda: float = 1.0,
         instructor: nn.Module = None, 
         learner: nn.Module = None,
         contrastive_temp: float = 0.5,
@@ -41,6 +42,7 @@ class Trainer():
         self.contrastive_loss = SupConLoss(temperature=contrastive_temp)
         self.device = device
         self.writer = writer
+        self.loss_lambda = loss_lambda
 
     def train(self):
         data_loader_train, data_loader_val, data_loader_test = self.data_processor.load_data()
@@ -131,7 +133,7 @@ class Trainer():
                 if self.method == "baseline":
                     loss = ce_loss
                 if self.method == "our_method" or self.method == "our_method_t_e":
-                    loss = v_loss + ce_loss
+                    loss = self.loss_lambda * v_loss + ce_loss
                 self.optimizer_retrain_learner.zero_grad()
                 loss.backward()
                 self.optimizer_retrain_learner.step()

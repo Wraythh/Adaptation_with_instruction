@@ -27,6 +27,7 @@ def get_args():
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
     )
     parser.add_argument("--con-temp", type=float, default=0.5)
+    parser.add_argument("--loss-lambda", type=float, default=0.1)
     return parser.parse_args()
 
 def main(args=get_args()):
@@ -64,6 +65,7 @@ def main(args=get_args()):
         epoch=args.epochs,
         batch_size=args.batch_size,
         class_num=args.class_num,
+        loss_lambda=args.loss_lambda,
         learner=learner,
         instructor=instructor,
         contrastive_temp=args.con_temp,
