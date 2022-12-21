@@ -56,6 +56,8 @@ def main(args=get_args()):
     log_path = os.path.join(args.logdir, log_name)
     writer = SummaryWriter(log_path)
     writer.add_text("args", str(args))
+    writer.add_graph(learner, input_to_model=torch.randn((1, 3, 256, 256)).to(args.device))
+    writer.add_graph(instructor, input_to_model=(torch.randn((1, 10)).to(args.device), torch.randn((1, 2048)).to(args.device)))
 
     trainer = Trainer(
         method=args.method,

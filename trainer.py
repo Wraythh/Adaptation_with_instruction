@@ -94,6 +94,7 @@ class Trainer():
                 _, id = torch.max(pred_y.data, 1)
                 target = (id == labels.data).type_as(images)
                 loss = binary_cross_entropy(output, target)
+                output.data > 0.5
                 nums_correct = torch.sum(output.data == target)
                 self.writer.add_scalar("loss/train_instructor_on_t&e_set", loss.item(), instructor_train_iteration)
                 self.writer.add_scalar("accuracy/instructor_on_t&e_set", nums_correct / len(images), instructor_train_iteration)
